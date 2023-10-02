@@ -1,0 +1,225 @@
+---
+title: "Kenya HealthCare"
+author: "Esther"
+date: "2023-10-01"
+output:
+  html_document: default
+  '''''': default
+---
+
+## Problem Statement
+
+1.  What are the demograpic distribution of surveyed individuals?
+2.  What percentage of the surveyed population had health insurance?
+3.  Distribution of time since last hospital visit?
+4.  Do the patient do routine health checks?(How often)
+5.  Have the Individuals taken any cancer screening?
+6.  How do various factors e.g. health insurance, hospital visits,cancer screening change over time?
+7.  Investigate the relationship between monthly household income and access to healthcare, insurance coverage, and health outcomes.
+8.  Correlations between variables to identify potential associations or dependencies.
+9.  Find whether there are disparities in healthcare access or outcomes based on gender, age, income, or other demographic factors.
+
+```{r}
+library(readxl)
+library(dplyr)
+library(purrr)
+library(ggplot2)
+Healthcare <- read_excel("~/data_analytics/health_care/Healthcare Dataset.xlsx")
+head(Healthcare)
+```
+
+```{r}
+str(Healthcare)
+```
+
+```{r}
+summary(Healthcare)
+```
+
+```{r}
+dim(Healthcare)
+```
+
+```{r}
+colnames(Healthcare)
+```
+
+```{r eval=FALSE, include=FALSE}
+Healthcare$Gender <- as.factor(Healthcare$Gender)
+Healthcare$`Marital Status` <- as.factor(Healthcare$`Marital Status`)
+Healthcare$Age <- as.factor(Healthcare$Age)
+Healthcare$`Employment Status` <- as.factor(Healthcare$`Employment Status`)
+Healthcare$`Monthly Household Income` <- as.factor(Healthcare$`Monthly Household Income`)
+Healthcare$last_check_up_years <- as.numeric(Healthcare$last_check_up_years)
+Healthcare$Cancerscreening <- as.logical(Healthcare$Cancerscreening)
+Healthcare$Interval_of_screening <- as.numeric(Healthcare$Interval_of_screening)
+Healthcare$Insured_last_visit <- as.factor(Healthcare$Insured_last_visit)
+Healthcare$routine_checkup <- as.factor(Healthcare$routine_checkup)
+
+```
+
+```{r}
+tail(Healthcare)
+```
+
+### Rename columns
+
+```{r}
+Healthcare <- Healthcare %>%
+  rename(Children = 'How many children do you have, if any?', Insured = 'Have you ever had health insurance?', InsuranceName = 'If yes, which insurance cover?', Last_hospital_visit_months = 'When was the last time you visited a hospital for medical treatment? (In Months)' , Insured_last_visit ='Did you have health insurance during your last hospital visit?', routine_checkup = 'Have you ever had a routine check-up with a doctor or healthcare provider?', last_check_up_years = 'If you answered yes to the previous question, what time period (in years) do you stay before having your routine check-up?',  Cancerscreening ='Have you ever had a cancer screening (e.g. mammogram, colonoscopy, etc.)?', Interval_of_screening = 'If you answered yes to the previous question, what time period (in years) do you stay before having your Cancer screening?')
+summary(Healthcare)
+```
+
+### Identify missing values
+
+```{r}
+ Healthcare %>% map(~sum(is.na(.)))
+ sum(duplicated(Healthcare))
+```
+
+```{r}
+Healthcare <- Healthcare %>%
+  select (-c(`_tags`, `__version__`, `_submitted_by`, `_status`, `_notes`, `_validation_status`,`_submission_time`, `Your Picture_URL`,`_id`, `Your Picture`,`_uuid`, '_index'))
+summary(Healthcare)
+```
+
+```{r}
+Healthcare$Gender <- as.factor(Healthcare$Gender)
+Healthcare$`Marital Status` <- as.factor(Healthcare$`Marital Status`)
+Healthcare$Age <- as.factor(Healthcare$Age)
+Healthcare$`Employment Status` <- as.factor(Healthcare$`Employment Status`)
+Healthcare$`Monthly Household Income` <- as.factor(Healthcare$`Monthly Household Income`)
+Healthcare$last_check_up_years <- as.numeric(Healthcare$last_check_up_years)
+Healthcare$Cancerscreening <- as.logical(Healthcare$Cancerscreening)
+Healthcare$Interval_of_screening <- as.numeric(Healthcare$Interval_of_screening)
+Healthcare$Insured_last_visit <- as.factor(Healthcare$Insured_last_visit)
+Healthcare$routine_checkup <- as.factor(Healthcare$routine_checkup)
+summary(Healthcare)
+```
+
+```{r}
+# Calculate the mean of the "Children" variable, excluding NA values
+mean_children <- median(Healthcare$Children, na.rm = TRUE)
+
+# Replace missing (NA) values in the "Children" variable with the calculated mean
+Healthcare <- Healthcare %>%
+  mutate(Children = ifelse(is.na(Children), mean_children, Children))
+str(Healthcare)
+
+```
+
+```{r}
+Healthcare_G <- Healthcare %>%
+  filter(!is.na(Gender))
+Healthcare_G <- Healthcare_G %>%
+  group_by(Gender) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+# Create the bar plot with percentage labels
+ggplot(Healthcare_G, aes(Gender, y = percentage,fill = Gender, label = sprintf("%.1f%%", percentage))) +
+  geom_col() +
+  geom_text(vjust = -0.5) +  # Add data labels above the bars
+  labs(
+    title = "Gender count",
+    x = "",
+    y = ""
+  ) +
+  scale_fill_manual(values = c("Male" = "#27cf9d", "Female" = "purple")) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentages
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )+
+   guides(fill = FALSE)
+```
+
+```{r}
+Healthcare$Children[Healthcare$Children >= 14] <- NA
+ggplot(Healthcare, aes(Children))+
+  geom_histogram(binwidth = 0.5, fill = '#27cf9d')+
+
+labs(
+    title = "Number of Children",
+    x = "",
+    y = ""
+  ) +
+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+```{r}
+ggplot(Healthcare, aes(x = Age)) +
+  geom_bar( fill = '#27cf9d')+
+  labs(
+    title = "Age Category",
+    x = "",
+    y = ""
+  ) +
+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+  
+ 
+
+```
+
+```{r}
+Healthcare_ <- Healthcare %>%
+  filter(!is.na(Gender), !is.na(Age))
+ggplot(Healthcare_, aes(x = Age, fill = Gender)) +
+  geom_bar() +
+  labs(
+    title = "Population Pyramid",
+    x = " ",
+    y = "",
+    fill = "Gender"
+  ) +
+  scale_fill_manual(values = c("Male" = "#27cf9d", "Female" = "purple")) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+```{r}
+summary(Healthcare)
+```
+
+```{r}
+Healthcare_m <- Healthcare %>%
+  group_by(`Marital Status`) %>%
+  summarise(Percentage = round((n() / nrow(Healthcare)) * 100, 2)) %>%
+  arrange(desc(Percentage))
+
+# Print the resulting summary table
+print(Healthcare_m)
+
+
+```
+
+```{r}
+
+```
