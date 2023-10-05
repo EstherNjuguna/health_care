@@ -1,0 +1,607 @@
+---
+title: "Kenya HealthCare"
+author: "Esther"
+date: "2023-10-01"
+output:
+  html_document: default
+  '''''': default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+## Problem Statement
+
+1.  What are the demograpic distribution of surveyed individuals?
+2.  What percentage of the surveyed population had health insurance?
+3.  Distribution of time since last hospital visit?
+4.  Do the patient do routine health checks?(How often)
+5.  Have the Individuals taken any cancer screening?
+6.  How do various factors e.g. health insurance, hospital visits,cancer
+    screening change over time?
+7.  Investigate the relationship between monthly household income and
+    access to healthcare, insurance coverage, and health outcomes.
+8.  Correlations between variables to identify potential associations or
+    dependencies.
+9.  Find whether there are disparities in healthcare access or outcomes
+    based on gender, age, income, or other demographic factors.
+
+```{r echo=FALSE}
+
+library(readxl)
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+library(forcats)
+library(corrplot)
+setwd("~/data_analytics/health_care")
+Healthcare <- read_excel("~/data_analytics/health_care/Healthcare Dataset.xlsx")
+head(Healthcare)
+```
+
+```{r}
+str(Healthcare)
+```
+
+```{r}
+summary(Healthcare)
+```
+
+```{r}
+dim(Healthcare)
+```
+
+```{r}
+colnames(Healthcare)
+```
+
+```{r eval=FALSE, include=FALSE}
+Healthcare$Gender <- as.factor(Healthcare$Gender)
+Healthcare$`Marital Status` <- as.factor(Healthcare$`Marital Status`)
+Healthcare$Age <- as.factor(Healthcare$Age)
+Healthcare$`Employment Status` <- as.factor(Healthcare$`Employment Status`)
+Healthcare$`Monthly Household Income` <- as.factor(Healthcare$`Monthly Household Income`)
+Healthcare$last_check_up_years <- as.numeric(Healthcare$last_check_up_years)
+Healthcare$Cancerscreening <- as.logical(Healthcare$Cancerscreening)
+Healthcare$Interval_of_screening <- as.numeric(Healthcare$Interval_of_screening)
+Healthcare$Insured_last_visit <- as.factor(Healthcare$Insured_last_visit)
+Healthcare$routine_checkup <- as.factor(Healthcare$routine_checkup)
+
+```
+
+```{r}
+tail(Healthcare)
+```
+
+### Rename columns
+
+```{r}
+Healthcare <- Healthcare %>%
+  rename(Children = 'How many children do you have, if any?', Insured = 'Have you ever had health insurance?', InsuranceName = 'If yes, which insurance cover?', Last_hospital_visit_months = 'When was the last time you visited a hospital for medical treatment? (In Months)' , Insured_last_visit ='Did you have health insurance during your last hospital visit?', routine_checkup = 'Have you ever had a routine check-up with a doctor or healthcare provider?', last_check_up_years = 'If you answered yes to the previous question, what time period (in years) do you stay before having your routine check-up?',  Cancerscreening ='Have you ever had a cancer screening (e.g. mammogram, colonoscopy, etc.)?', Interval_of_screening = 'If you answered yes to the previous question, what time period (in years) do you stay before having your Cancer screening?')
+summary(Healthcare)
+```
+
+### Identify missing values
+
+```{r}
+ Healthcare %>% map(~sum(is.na(.)))
+ sum(duplicated(Healthcare))
+```
+
+```{r}
+Healthcare <- Healthcare %>%
+  select (-c(`_tags`, `__version__`, `_submitted_by`, `_status`, `Date and Time`, `_notes`, `_validation_status`,`_submission_time`, `Your Picture_URL`,`_id`, `Your Picture`,`_uuid`, '_index'))
+summary(Healthcare)
+```
+
+```{r echo=FALSE}
+Healthcare$Gender <- as.factor(Healthcare$Gender)
+Healthcare$`Marital Status` <- as.factor(Healthcare$`Marital Status`)
+Healthcare$Age <- as.factor(Healthcare$Age)
+Healthcare$`Employment Status` <- as.factor(Healthcare$`Employment Status`)
+Healthcare$`Monthly Household Income` <- as.factor(Healthcare$`Monthly Household Income`)
+Healthcare$last_check_up_years <- as.numeric(Healthcare$last_check_up_years)
+Healthcare$Cancerscreening <- as.logical(Healthcare$Cancerscreening)
+Healthcare$Interval_of_screening <- as.numeric(Healthcare$Interval_of_screening)
+Healthcare$Insured_last_visit <- as.factor(Healthcare$Insured_last_visit)
+Healthcare$routine_checkup <- as.factor(Healthcare$routine_checkup)
+summary(Healthcare)
+```
+
+```{r echo=FALSE}
+# Calculate the mean of the "Children" variable, excluding NA values
+mean_children <- median(Healthcare$Children, na.rm = TRUE)
+
+# Replace missing (NA) values in the "Children" variable with the calculated mean
+Healthcare <- Healthcare %>%
+  mutate(Children = ifelse(is.na(Children), mean_children, Children))
+str(Healthcare)
+
+```
+
+```{r echo=FALSE}
+Healthcare_G <- Healthcare %>%
+  filter(!is.na(Gender))
+Healthcare_G <- Healthcare_G %>%
+  group_by(Gender) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+# Create the bar plot with percentage labels
+ggplot(Healthcare_G, aes(Gender, y = percentage,fill = Gender, label = sprintf("%.1f%%", percentage))) +
+  geom_col() +
+  geom_text(vjust = -0.5) +  # Add data labels above the bars
+  labs(
+    title = "Gender count",
+    x = "",
+    y = ""
+  ) +
+  scale_fill_manual(values = c("Male" = "#27cf9d", "Female" = "purple")) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentages
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )+
+   guides(fill = FALSE)
+```
+
+```{r echo=FALSE}
+Healthcare$Children[Healthcare$Children >= 14] <- NA
+ggplot(Healthcare, aes(Children))+
+  geom_histogram(binwidth = 0.5, fill = '#27cf9d')+
+
+labs(
+    title = "Number of Children",
+    x = "",
+    y = ""
+  ) +
+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+```{r echo=FALSE}
+ggplot(Healthcare, aes(x = Age)) +
+  geom_bar( fill = '#27cf9d')+
+  labs(
+    title = "Age Category",
+    x = "",
+    y = ""
+  ) +
+
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+  
+ 
+
+```
+
+```{r echo=FALSE}
+Healthcare_ <- Healthcare %>%
+  filter(!is.na(Gender), !is.na(Age))
+ggplot(Healthcare_, aes(x = Age, fill = Gender)) +
+  geom_bar() +
+  labs(
+    title = "Population Pyramid",
+    x = " ",
+    y = "",
+    fill = "Gender"
+  ) +
+  scale_fill_manual(values = c("Male" = "#27cf9d", "Female" = "purple")) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+```{r}
+summary(Healthcare)
+```
+
+### Marital Status
+
+```{r echo=FALSE}
+Healthcare_m <- Healthcare %>%
+  group_by(`Marital Status`) %>%
+  summarise(Percentage = round((n() / nrow(Healthcare)) * 100, 2)) %>%
+  arrange(desc(Percentage))
+
+# Print the resulting summary table
+print(Healthcare_m)
+
+
+```
+
+### Insured
+
+```{r echo=FALSE}
+
+Healthcare_insured <- Healthcare %>%
+  group_by(Insured) %>%
+  filter(!is.na(Insured)) %>%
+  summarise(Percentage = round((n() / nrow(Healthcare)) * 100, 2)) %>%
+  arrange(desc(Percentage))
+ggplot(Healthcare_insured, aes(x = "", y = "", fill = `Insured`)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(Percentage, "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = c("Yes" = "green", "No" = "purple"))+
+                      ggtitle("Percentage Insured")
+```
+
+### Age Categories Insured
+
+```{r echo=FALSE}
+ggplot(Healthcare_, aes(x = Age, fill = Insured)) +
+  geom_bar() +
+  labs(title = "Insured vs. Uninsured by Age", y = "", x = "") +
+  theme_minimal()+
+  scale_fill_manual(values = c("Yes" = "green", "No" = "purple"))+
+  theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+
+```
+
+### Male to Female Insured
+
+```{r}
+Healthcare_cleaned <- Healthcare[!is.na(Healthcare$Gender) & !is.na(Healthcare$Insured), ]
+ggplot(Healthcare_cleaned, aes(x = Gender, fill = Insured)) +
+  geom_bar() +
+  labs(title = "Insured vs. Uninsured by Gender", y = "") +
+  theme_minimal()+
+  scale_fill_manual(values = c("Yes" = "green", "No" = "purple"))+
+  theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+### Type of insurance
+
+```{r}
+Healthcare_cover <- Healthcare %>%
+  group_by(InsuranceName)%>%
+  
+  summarise(Count = n()) 
+print(Healthcare_cover)
+```
+
+### Clean Insurance
+
+```{r echo=FALSE}
+expanded_dataset <- Healthcare %>%
+  separate_rows(InsuranceName, sep = ",") %>%
+  separate_rows(InsuranceName, sep = "\r\n")
+expanded_dataset <- expanded_dataset %>%
+  mutate(InsuranceName = trimws(str_to_title(InsuranceName)))
+insurance_counts <- expanded_dataset %>%
+ 
+  group_by(InsuranceName) %>%
+  summarise(Count = n())
+insurance_counts
+
+
+```
+
+```{r echo=FALSE}
+expanded_dataset <- expanded_dataset %>%
+  mutate(
+    InsuranceName = na_if(InsuranceName, "NA"),
+    InsuranceName = replace_na(InsuranceName, "Unknown"),
+    InsuranceName = case_when(
+      grepl("NHIF", InsuranceName, ignore.case = TRUE) ~ "NHIF",
+      grepl("NGIF", InsuranceName, ignore.case = TRUE) ~ "NHIF",
+      grepl("NHIT", InsuranceName, ignore.case = TRUE) ~ "NHIF",
+      grepl("MHIF", InsuranceName, ignore.case = TRUE) ~ "NHIF",
+      grepl("HIF", InsuranceName, ignore.case = TRUE) ~ "NHIF",
+      grepl("Jubilee", InsuranceName, ignore.case = TRUE) ~ "Jubilee",
+      grepl("Jubilee Insurance", InsuranceName, ignore.case = TRUE) ~ "Jubilee",
+      grepl("CIC", InsuranceName, ignore.case = TRUE) ~ "CIC",
+      grepl("vIC", InsuranceName, ignore.case = TRUE) ~ "CIC",
+      grepl("CIC Group Insurance", InsuranceName, ignore.case = TRUE) ~ "CIC",
+      grepl("CIC Medical Cover", InsuranceName, ignore.case = TRUE) ~ "CIC",
+      grepl("aar", InsuranceName, ignore.case = TRUE) ~ "AAR",
+      grepl("ara", InsuranceName, ignore.case = TRUE) ~ "AAR",
+      grepl("Absa", InsuranceName, ignore.case = TRUE) ~ "Absa Insurance",
+      grepl("Apa", InsuranceName, ignore.case = TRUE) ~ "APA Insurance",
+      grepl("uap", InsuranceName, ignore.case = TRUE) ~ "UAP OLD MUTUAL",
+         grepl("old Mutual", InsuranceName, ignore.case = TRUE) ~ "UAP OLD MUTUAL",
+      grepl("san", InsuranceName, ignore.case = TRUE) ~ "Sanlam",
+      grepl("Sam", InsuranceName, ignore.case = TRUE) ~ "Sanlam",
+      grepl("Brit", InsuranceName, ignore.case = TRUE) ~ "Britam",
+      grepl("Cooperative", InsuranceName, ignore.case = TRUE) ~ "Cooperative Cover",
+      grepl("direct", InsuranceName, ignore.case = TRUE) ~ "DirectLine",
+      grepl("aar", InsuranceName, ignore.case = TRUE) ~ "AAR",
+      grepl("Afya", InsuranceName, ignore.case = TRUE) ~ "Afya Health",
+      grepl("kcb", InsuranceName, ignore.case = TRUE) ~ "KCB Insurance",
+      grepl("Kenn", InsuranceName, ignore.case = TRUE) ~ "Kenindia",
+      grepl("health", InsuranceName, ignore.case = TRUE) ~ "Health Cover",
+      grepl("Marte", InsuranceName, ignore.case = TRUE) ~ "Linda Mama",
+      grepl("Mate", InsuranceName, ignore.case = TRUE) ~ "Linda Mama",
+      grepl("N", InsuranceName, ignore.case = TRUE) ~ "NA",
+      grepl("N/A", InsuranceName, ignore.case = TRUE) ~ "NA",
+      grepl("No", InsuranceName, ignore.case = TRUE) ~ "NA",
+      grepl("Nil", InsuranceName, ignore.case = TRUE) ~ "NA",
+      grepl("Null", InsuranceName, ignore.case = TRUE) ~ "NA",
+      grepl("NA", InsuranceName, ignore.case = TRUE) ~ "NA",
+     !grepl("[a-zA-Z]", InsuranceName) ~ "Unknown",
+      TRUE ~ InsuranceName
+    )
+  )
+
+insurance_counts <- expanded_dataset %>%
+  group_by(InsuranceName) %>%
+  summarise(Count = n())%>%
+  arrange(desc(Count))
+insurance_counts
+
+```
+
+```{r echo=FALSE}
+threshold <- 10
+expanded_dataset <- expanded_dataset %>%
+  left_join(insurance_counts, by = "InsuranceName") %>%
+  mutate(
+    InsuranceName = case_when(
+      Count < threshold ~ "Others",
+      TRUE ~ as.character(InsuranceName)  # Leave other values unchanged
+    )
+  ) %>%
+  select(-Count) 
+insurance_counts <- expanded_dataset %>%
+  group_by(InsuranceName) %>%
+  summarise(Count = n() ) %>%  
+  arrange(desc(Count))
+
+insurance_counts <- insurance_counts %>%
+  mutate(Percentage = (Count / sum(Count)) * 100)
+insurance_counts
+
+```
+
+### Percentage
+
+```{r echo=FALSE}
+insurance_top <- head(insurance_counts)
+
+ggplot(insurance_top, aes(x = fct_reorder(InsuranceName, Percentage), y = Percentage, fill = InsuranceName)) +
+  geom_text(aes(label = scales::percent(Percentage / 100)), hjust = -0.1) +
+  geom_col() + 
+  labs(
+    title = "Insurance Distribution", 
+    x = "", 
+    y = "") + 
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    axis.text.y = element_text(hjust = 0),
+    legend.position = "none"
+  
+  ) +
+  scale_fill_discrete(guide = guide_legend(title = NULL)) +
+  coord_flip()
+
+```
+
+```{r echo=FALSE}
+insurance_tail<- tail(insurance_counts,10)
+
+ggplot(insurance_tail, aes(x = fct_reorder(InsuranceName, Percentage), y = Percentage)) +
+  geom_col(fill ="#27cf9d") + 
+  geom_text(aes(label = scales::percent(Percentage / 100)), vjust = -0.5) + 
+  labs(
+    title = "Insurance Distribution", 
+    x = "", 
+    y = "") + 
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    axis.text.y = element_text(hjust = 0),
+    legend.position = "none"
+  
+  ) +
+  scale_fill_discrete(guide = guide_legend(title = NULL)) +
+  coord_flip()
+```
+
+```{r}
+summary(expanded_dataset)
+```
+
+```{r echo=FALSE}
+ggplot(Healthcare,aes(routine_checkup))+
+  geom_bar(fill = "#27cf9d")+
+   labs(title = "Routine Checkup", y = "", x ="") +
+  theme_minimal()+
+
+  theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+### Routine CheckUp vs Insured
+
+```{r echo=FALSE}
+Healthcare_cleaned <- Healthcare[!is.na(Healthcare$routine_checkup) & !is.na(Healthcare$Insured), ]
+
+ggplot(Healthcare_cleaned, aes(x = routine_checkup, fill = Insured)) +
+  geom_bar() +
+  labs(title = "Insured vs. Uninsured by Routine Check Up", y = "", x = "") +
+  theme_minimal()+
+  scale_fill_manual(values = c("Yes" = "green", "No" = "purple"))+
+ theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+```{r include=FALSE}
+Healthcare_summary <- Healthcare_cleaned %>%
+  group_by(routine_checkup, Insured) %>%
+  summarise(Count = n(), Percentage = n() / nrow(Healthcare_cleaned) * 100)
+Healthcare_summary
+```
+
+### Employment
+
+```{r echo=FALSE}
+ggplot(Healthcare, aes(`Employment Status` ))+
+  geom_bar(fill = "#27cf9d")+
+  labs(x = "",
+       y = "",
+       title = "Employment Status")+
+  theme(
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+### Employment Status and Insurance Coverage
+
+```{r echo=FALSE}
+Healthcare_cleaned <- Healthcare[!is.na(Healthcare$`Employment Status`) & !is.na(Healthcare$Insured), ]
+
+ggplot(Healthcare_cleaned, aes(x = `Employment Status`, fill = Insured)) +
+  geom_bar() +
+  labs(title = "Insured vs. Uninsured by Employment Status", y = "", x = "") +
+  theme_minimal()+
+  scale_fill_manual(values = c("Yes" = "green", "No" = "purple"))+
+ theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+```{r echo=FALSE}
+Healthcare_cleaned <- Healthcare[!is.na(Healthcare$`Employment Status`) & !is.na(Healthcare$routine_checkup), ]
+
+ggplot(Healthcare_cleaned, aes(x = `Employment Status`, fill = routine_checkup)) +
+  geom_bar() +
+  labs(title = "Employement Status vs Routine Check Up", y = "", x = "") +
+  theme_minimal()+
+  scale_fill_manual(values = c("Yes" = "green", "No" = "purple"))+
+ theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+```{r echo=FALSE}
+ggplot(Healthcare, aes(`Monthly Household Income` ))+
+  geom_bar(fill = "#27cf9d")+
+  labs(x = "",
+       y = "",
+       title = "Monthly Household Income")+
+  theme(
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)
+     
+  ) + 
+  coord_flip()
+```
+
+```{r echo=FALSE}
+Healthcare_cleaned <- Healthcare[!is.na(Healthcare$`Monthly Household Income`) & !is.na(Healthcare$routine_checkup), ]
+
+ggplot(Healthcare_cleaned, aes(x = `Monthly Household Income`, fill = routine_checkup)) +
+  geom_bar() +
+  labs(title = "Household Income vs Routine Check Up", y = "", x = "") +
+  theme_minimal()+
+  scale_fill_manual(values = c("Yes" = "green", "No" = "purple"))+
+ theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+```{r echo=FALSE}
+Healthcare_cleaned <- Healthcare[!is.na(Healthcare$`Monthly Household Income`) & !is.na(Healthcare$Insured), ]
+
+
+ggplot(Healthcare_cleaned, aes(x = `Monthly Household Income`, fill = Insured)) +
+  geom_bar() +
+  labs(title = "Household Income Vs Insured", y = "", x = "") +
+  theme_minimal()+
+  scale_fill_manual(values = c("Yes" = "green", "No" = "purple"))+
+ theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),  # Hide major grid lines
+    panel.grid.minor = element_blank(),  # Hide minor grid lines
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+     
+  )
+```
+
+```{}
+```
+
+```{undefined echo=FALSE}
+
+```
